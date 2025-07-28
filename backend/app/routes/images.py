@@ -1,33 +1,43 @@
-from fastapi import APIRouter, UploadFile, HTTPException
+from fastapi import APIRouter, UploadFile, Form, File, HTTPException
+from typing import List
 from config.firebase_config import bucket, db
 import uuid
+import asyncio
 
 router = APIRouter()
 
-@router.post("/upload/")
-async def upload_image(file: UploadFile):
+async def upload_to_firebase(user_id: str, group_id: str, file: UploadFile):
     try:
-        print(f"Uploading image...")
-        filename = f"{uuid.uuid4()}_{file.filename}"
+        unique_name = f"{uuid.uuid4()}_{file.filename}"
+        firebase_path = f"{user_id}/{group_id}/image/{unique_name}"
 
-        print(f"Generated filename: {filename}")
-        blob = bucket.blob(filename)
+        blob = bucket.blob(firebase_path)
         blob.upload_from_file(file.file, content_type=file.content_type)
-        blob.make_public()  # Optional: make file public
+        blob.make_public()
 
-        print("Uploaded to Firebase Storage")
-
-        # Save metadata in Firestore
         doc_ref = db.collection("images").document()
         doc_ref.set({
-            "filename": filename,
+            "user_id": user_id,
+            "group_id": group_id,
+            "filename": unique_name,
+            "storage_path": firebase_path,
             "url": blob.public_url
         })
 
-        print("Metadata saved in Firestore")
-
-        return {"message": "Uploaded successfully", "url": blob.public_url}
-    
+        return {"filename": unique_name, "url": blob.public_url}
     except Exception as e:
-        print(f"❌ Error during upload: {e}")
-        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+        return {"error": str(e), "filename": file.filename}
+
+@router.post("/upload/")
+async def upload_images(
+    user_id: str = Form(...),
+    group_id: str = Form(...),
+    files: List[UploadFile] = File(...)
+):
+    if not files:
+        raise HTTPException(status_code=400, detail="No files uploaded")
+
+    tasks = [upload_to_firebase(user_id, group_id, file) for file in files]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    return {"message": f"{len(files)} files processed", "results": results}

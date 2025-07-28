@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Image Compression Test</title>
+</head>
+<body>
+  <h1>Image Compression Test</h1>
+  <input type="file" id="imageInput" accept="image/*" />
+  <br><br>
+  <img id="preview" style="max-width: 500px; display: none;" />
+  <br><br>
+  <button id="compressBtn">Compress Image</button>
+  <a id="downloadLink" style="display: none;">Download Compressed Image</a>
+
+  <script src="https://cdn.jsdelivr.net/npm/browser-image-compression/dist/browser-image-compression.js"></script>
+  <script>
+    const input = document.getElementById('imageInput');
+    const preview = document.getElementById('preview');
+    const compressBtn = document.getElementById('compressBtn');
+    const downloadLink = document.getElementById('downloadLink');
+    let selectedFile = null;
+
+    input.addEventListener('change', (e) => {
+      selectedFile = e.target.files[0];
+      if (selectedFile) {
+        const url = URL.createObjectURL(selectedFile);
+        preview.src = url;
+        preview.style.display = 'block';
+      }
+    });
+
+    compressBtn.addEventListener('click', async () => {
+      if (!selectedFile) {
+        alert('Please select an image first.');
+        return;
+      }
+
+      try {
+        const options = {
+      maxWidthOrHeight: 3000,
+      initialQuality: 1.0,
+      fileType: "image/webp",
+      useWebWorker: true,
+    };
+
+        const compressedFile = await imageCompression(selectedFile, options);
+        console.log('Original size:', (selectedFile.size / 1024 / 1024).toFixed(2), 'MB');
+        console.log('Compressed size:', (compressedFile.size / 1024 / 1024).toFixed(2), 'MB');
+
+        // Create download link
+        const compressedBlob = compressedFile;
+        const compressedUrl = URL.createObjectURL(compressedBlob);
+
+        downloadLink.href = compressedUrl;
+        downloadLink.download = `compressed_${selectedFile.name}`;
+        downloadLink.textContent = 'Download Compressed Image';
+        downloadLink.style.display = 'block';
+      } catch (error) {
+        console.error('Compression error:', error);
+      }
+    });
+  </script>
+</body>
+</html>
