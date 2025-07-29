@@ -7,8 +7,8 @@ const UploadComponent: React.FC = () => {
     const [uploading, setUploading] = useState(false);
     const [progress, setProgress] = useState<number>(0);
 
-    const BATCH_SIZE = 5; // Number of files per request
-    const MAX_CONCURRENCY = 3; // Parallel requests at a time
+    const BATCH_SIZE = 10;
+    const MAX_CONCURRENCY = 5;
 
     const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
         if (!event.target.files) return;
@@ -33,11 +33,11 @@ const UploadComponent: React.FC = () => {
 
         const uploadBatch = async (batch: File[]) => {
             const formData = new FormData();
-            formData.append("user_id", "12345"); // Replace with dynamic value
+            formData.append("user_id", "abcdef"); // Replace with dynamic value
             formData.append("group_id", "67890"); // Replace with dynamic value
             batch.forEach((file) => formData.append("files", file));
 
-            await api.post("/images/upload/", formData, {
+            await api.post("/images/upload/background/", formData, {
                 headers: { "Content-Type": "multipart/form-data" },
             });
 
