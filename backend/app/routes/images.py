@@ -191,7 +191,7 @@ async def upload_images_background(
     """Upload files in background with fixed file handling"""
     if not files:
         raise HTTPException(status_code=400, detail="No files uploaded")
-    
+    print("working")
     upload_id = str(uuid.uuid4())
     
     # Read files immediately in the request context
