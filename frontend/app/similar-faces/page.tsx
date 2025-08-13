@@ -40,7 +40,32 @@ export default function SimilarFacesList() {
 
     fetchData();
   }, []);
+const merge = async (p_id: string, m_id: string) => {
+  try {
+    const response = await fetch("/api/merge_persons", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        merge_person_id: p_id,
+        merge_into_person_id: m_id,
+      }),
+    });
 
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Merge failed: ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log("Merge successful:", data);
+    return data;
+  } catch (error) {
+    console.error("Error merging persons:", error);
+    throw error;
+  }
+};
   if (loading) return <p>Loading...</p>;
   if (error) return <p style={{ color: "red" }}>{error}</p>;
 
@@ -87,9 +112,9 @@ export default function SimilarFacesList() {
                 <h3 className="font-semibold mb-3 text-gray-800">Similar Persons:</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                   {person.sim_faces.map((simFace) => (
-                    <Link
+                    <div key={simFace.sim_person_id}><Link
                       href={`/persons/${simFace.sim_person_id}`}
-                      key={simFace.sim_person_id}
+                      
                       className="flex flex-col items-center text-sm hover:bg-gray-50 p-2 rounded-lg transition-colors"
                     >
                       {simFace.thumb_img_byte ? (
@@ -110,6 +135,8 @@ export default function SimilarFacesList() {
                         }
                       </span>
                     </Link>
+                    <button onClick={()=>{merge(person.person_id , simFace.sim_person_id)}}>Merge</button>
+                    </div>
                   ))}
                 </div>
               </div>

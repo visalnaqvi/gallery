@@ -112,22 +112,30 @@ export async function POST(request: NextRequest): Promise<NextResponse<MergeResp
       `;
       
       const updateFacesResult = await client.query(updateFacesQuery, [merge_person_id, merge_into_person_id]);
+      
       const updatedFacesCount: number = updateFacesResult.rowCount || 0;
 
       // Step 3: Handle similar_faces table cleanup
       // Delete records where merge_person_id appears as main person
       const deleteSimilarAsMainQuery = `
         DELETE FROM similar_faces 
-        WHERE person_id = $1::uuid
+        WHERE person_id = $1
       `;
       
       const deleteSimilarAsMainResult = await client.query(deleteSimilarAsMainQuery, [merge_person_id]);
+
+      const deleteFromPersons = `
+        DELETE FROM persons 
+        WHERE person_id = $1
+      `;
+      
+      const deleteFromPersonsResult = await client.query(deleteSimilarAsMainQuery, [merge_person_id]);
       const deletedAsMainCount: number = deleteSimilarAsMainResult.rowCount || 0;
 
       // Delete records where merge_person_id appears as similar person
       const deleteSimilarAsSimilarQuery = `
         DELETE FROM similar_faces 
-        WHERE similar_person_id = $1::uuid
+        WHERE similar_person_id = $1
       `;
       
       const deleteSimilarAsSimilarResult = await client.query(deleteSimilarAsSimilarQuery, [merge_person_id]);

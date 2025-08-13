@@ -11,11 +11,21 @@ export async function GET(req: NextRequest) {
 
     // Query: get distinct person_id with any one thumb_byte
     const query = `
-      SELECT DISTINCT ON (person_id) person_id, face_thumb_bytes
-      FROM faces
-      WHERE person_id IS NOT NULL and face_thumb_bytes is not null
-      ORDER BY person_id, RANDOM()
+    SELECT DISTINCT ON (person_id) person_id, face_thumb_bytes
+FROM faces
+WHERE person_id IS NOT NULL AND face_thumb_bytes IS NOT NULL
+ORDER BY person_id, quality_score DESC NULLS LAST
     `;
+    //  const query = `
+    //   SELECT DISTINCT id as person_id, face_thumb_bytes
+    //   FROM persons
+    //   WHERE face_thumb_bytes is not null
+    `;
+    //  const query = `
+    //   SELECT 'abc' as person_id, face_thumb_bytes
+    //   FROM faces
+    //   WHERE face_thumb_bytes is not null
+    // `;
     const result = await client.query(query);
 
     client.release();

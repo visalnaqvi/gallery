@@ -28,23 +28,23 @@ export async function GET() {
             ORDER BY quality_score DESC NULLS LAST, id
           ) as face_thumb_bytes
         FROM faces
-        WHERE person_id IN (SELECT DISTINCT person_id FROM similar_faces)
+        WHERE person_id IN (SELECT DISTINCT person_id::uuid FROM similar_faces)
           AND face_thumb_bytes IS NOT NULL
       ) main_person
-      JOIN similar_faces sf ON sf.person_id = main_person.person_id
+      JOIN similar_faces sf ON sf.person_id::uuid = main_person.person_id
       JOIN (
         -- Get best thumbnail for each similar person
         SELECT DISTINCT
-          person_id,
-          FIRST_VALUE(face_thumb_bytes) OVER (
+          person_id::uuid,
+          FIRST_VALUE(encode(face_thumb_bytes,'base64')) OVER (
             PARTITION BY person_id 
             ORDER BY quality_score DESC NULLS LAST, id
           ) as face_thumb_bytes
         FROM faces
         WHERE face_thumb_bytes IS NOT NULL
-      ) similar_person ON similar_person.person_id = sf.similar_person_id
+      ) similar_person ON similar_person.person_id = sf.similar_person_id::uuid
       GROUP BY main_person.person_id, main_person.face_thumb_bytes
-      ORDER BY main_person.person_id;
+      ORDER BY main_person.person_id; 
     `;
 
     const result = await client.query(query);
@@ -70,9 +70,7 @@ export async function GET() {
         : "",
       sim_faces: (row.sim_faces || []).map((simFace: SimFace) => ({
         sim_person_id: simFace.sim_person_id,
-        thumb_img_byte: simFace.thumb_img_byte 
-          ? Buffer.from(simFace.thumb_img_byte).toString("base64")
-          : ""
+        thumb_img_byte: simFace.thumb_img_byte
       }))
     }));
 
