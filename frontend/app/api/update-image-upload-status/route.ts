@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
 
    const insertQuery = `
   INSERT INTO images (
-    id, 
+    id,
     group_id, 
     filename, 
     location, 
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     json_meta_data, 
     thumb_byte, 
     image_byte, 
-    created_at, 
+    uploaded_at, 
     last_accessed_at, 
     last_downloaded_at,  
     created_by_user,
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
 
 for (const img of images) {
   await client.query(insertQuery, [
-    img.id,              
+    img.id,
     groupId,             
     img.filename,        
     img.location,        

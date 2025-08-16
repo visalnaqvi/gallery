@@ -67,6 +67,28 @@ export default function ImageUploader() {
         }
 
         setUploading(true);
+        try {
+            const res = await fetch('/api/groups', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ groupId }),
+            });
+
+            if (!res.ok) {
+                const errorText = await res.text();
+                console.error('Failed to update group status:', errorText);
+                alert('Could not update group status.');
+                setUploading(false);
+                return;
+            }
+
+            console.log('Group status updated to heating');
+        } catch (error) {
+            console.error('Error updating group status:', error);
+            setUploading(false);
+            return;
+        }
+
         const limit = pLimit(20);
         const results: ImageMeta[] = [];
 
@@ -77,7 +99,7 @@ export default function ImageUploader() {
                 try {
                     const uuid = uuidv4();
                     const timestamp = new Date().toISOString();
-                    const filePath = `${userId}_${groupId}_${uuid}_${file.name}`;
+                    const filePath = `${uuid}`;
                     const fileRef = ref(storage, filePath);
 
                     const uploadTask = await uploadBytesResumable(fileRef, file);

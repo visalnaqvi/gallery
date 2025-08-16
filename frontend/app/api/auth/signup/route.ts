@@ -16,18 +16,17 @@ export async function POST(req: NextRequest) {
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
-    const id = uuidv4();
 
     const client = await pool.connect();
     await client.query(
       `INSERT INTO users (
-        id, first_name, last_name, password_hash, email, phone_number, date_of_birth, is_admin, groups, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, false, ARRAY[]::uuid[], NOW())`,
-      [id, first_name, last_name, hashedPassword, email, phone_number, date_of_birth]
+        first_name, last_name, password_hash, email, phone_number, date_of_birth, is_admin, groups, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, false, ARRAY[]::int[], NOW())`,
+      [first_name, last_name, hashedPassword, email, phone_number, date_of_birth]
     );
     client.release();
 
-    return NextResponse.json({ message: 'User created successfully', id });
+    return NextResponse.json({ message: 'User created successfully' });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
