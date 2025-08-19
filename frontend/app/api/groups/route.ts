@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     }
 
     const groupQuery = await client.query(
-      `SELECT id, name, total_images, total_size, admin_user, last_image_added_at, status
+      `SELECT id, name, total_images, total_size, admin_user, last_image_uploaded_at, status
        FROM groups
        WHERE id = ANY($1)`,
       [groupIds]
@@ -61,8 +61,8 @@ export async function POST(req: NextRequest) {
     const client = await pool.connect();
 
     const result = await client.query(
-      `INSERT INTO groups (name, admin_user, status, total_images, total_size, last_image_added_at)
-       VALUES ($1, $2, 'heating', 0, 0, null)
+      `INSERT INTO groups (name, admin_user, status, total_images, total_size)
+       VALUES ($1, $2, 'heating', 0, 0)
        RETURNING id`,
       [name, userId]
     );
