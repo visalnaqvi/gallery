@@ -3,12 +3,12 @@
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-
+import styles from "./styles.module.css"
 export default function LoginForm() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const router = useRouter();
-
+    const [showPass, setShowPass] = useState(false)
     async function handleLogin(e: React.FormEvent) {
         e.preventDefault();
 
@@ -27,25 +27,32 @@ export default function LoginForm() {
     }
 
     return (
-        <form onSubmit={handleLogin} className="space-y-4">
-            <h2 className="text-xl font-semibold">Login</h2>
+        <form onSubmit={handleLogin} className={styles.form}>
+            <h2 className={styles.heading}>Hello,</h2>
+            <h2 className={styles.heading}>Welcome Back,</h2>
+            <p className={styles.tag}>Hey! Welcome back to Snapper, Login to Contniue</p>
             <input
-                className="w-full border p-2 rounded"
+                className={styles.input}
                 placeholder="Email"
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
             />
+            <br></br>
             <input
-                className="w-full border p-2 rounded"
+                className={styles.input}
                 placeholder="Password"
-                type="password"
+                type={showPass ? "text" : "password"}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
             />
-            <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded">
+            <p className={styles.passSwitch} onClick={() => {
+                setShowPass(!showPass)
+            }}>{showPass ? "Hide" : "Show"} Password</p>
+            <br></br>
+            <button type="submit" className={styles.submitBtn}>
                 Login
             </button>
         </form>

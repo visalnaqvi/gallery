@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import CreateGroupModal from './CreateGroupModal';
 import { useUser } from '@/context/UserContext';
 import { useRouter } from 'next/navigation';
+import styles from "./styles.module.css"
+import Image from 'next/image';
 interface Group {
     id: string;
     name: string;
@@ -11,6 +13,7 @@ interface Group {
     total_size: number;
     admin_user: string;
     last_image_added_at: string;
+    profile_pic_location: string;
 }
 
 export default function GroupsList({ userId }: { userId: string }) {
@@ -37,8 +40,8 @@ export default function GroupsList({ userId }: { userId: string }) {
     }, []);
 
     return (
-        <div className="p-4 border rounded max-w-2xl mx-auto space-y-4">
-            <div className="flex justify-between items-center">
+        <div className={styles.mainWrapper}>
+            <div className={styles.header}>
                 <h2 className="text-xl font-semibold">Your Groups</h2>
                 <button
                     onClick={() => setShowModal(true)}
@@ -53,15 +56,32 @@ export default function GroupsList({ userId }: { userId: string }) {
             ) : groups.length === 0 ? (
                 <p>No groups found.</p>
             ) : (
-                <ul className="space-y-2">
+                <ul className={styles.groupCardsWrapper}>
                     {groups.map(group => (
-                        <li key={group.id} className="border p-3 rounded" onClick={() => {
-                            setUserId(userId)
-                            setGroupId(group.id)
-                            router.push("/upload")
-                        }}>
-                            <p className="font-medium">{group.name}</p>
-                            <p className="text-sm text-gray-500">Images: {group.total_images}, Size: {group.total_size} bytes</p>
+                        <li key={group.id} className={styles.groupCard}
+                            onClick={() => {
+                                router.push("/gallery?groupId=" + group.id)
+                            }}
+                        >
+                            {
+                                group.profile_pic_location == "" ?
+                                    <div className={styles.groupImage}>
+                                        <div className={styles.innerWordWrapper}>{group.name.charAt(0)}</div>
+                                    </div> : <div className={styles.cardThumWrapper}><Image className={styles.img} src={group.profile_pic_location} alt="group image" fill></Image></div>
+                            }
+                            <div className={styles.groupDetails}>
+                                <p className={styles.groupName}>{group.name}</p>
+                                <p className={styles.groupData}>Images: {group.total_images}</p>
+                                {group.admin_user == userId && <div className={styles.adminPanel}>
+                                    <button className={styles.uploadBtn} onClick={() => {
+                                        setUserId(userId)
+                                        setGroupId(group.id)
+                                        router.push("/upload")
+                                    }}>Upload Images</button>
+
+                                </div>}
+                            </div>
+
                         </li>
                     ))}
                 </ul>

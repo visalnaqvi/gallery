@@ -1,0 +1,49 @@
+.mainWrapper{
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #f8f8f8;
+}
+
+.formHolder{
+    width: 60%;
+    height: 80%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 10px 20px 50px #00000030;
+}
+
+.right {
+    height: 100%;
+    width: 50%;
+    padding: 10px;
+}
+
+.right img{
+    height: 100%;
+    width: 100%;
+    border-radius: 10px;
+}
+
+.left{
+    padding: 50px;
+    width: 50%;
+}
+.switch{
+    margin-top: 60px;
+}
+
+.switch span{
+    font-weight: 900;
+    color: var(--primary-blue);
+    cursor: pointer;
+}
+
+.switch span:hover{
+    opacity: 0.8;
+}

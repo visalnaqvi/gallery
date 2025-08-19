@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import styles from "./styles.module.css"
 
 export default function SignupForm() {
     const [form, setForm] = useState({
@@ -11,6 +12,7 @@ export default function SignupForm() {
         password: '',
         date_of_birth: '',
     });
+    const [showPass, setShowPass] = useState(false)
 
     async function handleSignup(e: React.FormEvent) {
         e.preventDefault();
@@ -29,24 +31,26 @@ export default function SignupForm() {
     }
 
     return (
-        <form onSubmit={handleSignup} className="space-y-4">
-            <h2 className="text-xl font-semibold">Sign Up</h2>
+        <form onSubmit={handleSignup} className={styles.form}>
+            <h2 className={styles.heading}>Hello,</h2>
+            <h2 className={styles.heading}>Welcome to Snapsy</h2>
+            <p className={styles.tag}>Your new home for photos, stories, and memories.</p>
             <input
-                className="w-full border p-2 rounded"
+                className={styles.input}
                 placeholder="First Name"
                 value={form.first_name}
                 onChange={e => setForm({ ...form, first_name: e.target.value })}
                 required
             />
             <input
-                className="w-full border p-2 rounded"
+                className={styles.input}
                 placeholder="Last Name"
                 value={form.last_name}
                 onChange={e => setForm({ ...form, last_name: e.target.value })}
                 required
             />
             <input
-                className="w-full border p-2 rounded"
+                className={styles.input}
                 placeholder="Email"
                 type="email"
                 value={form.email}
@@ -54,26 +58,29 @@ export default function SignupForm() {
                 required
             />
             <input
-                className="w-full border p-2 rounded"
+                className={styles.input}
                 placeholder="Phone Number"
                 value={form.phone_number}
                 onChange={e => setForm({ ...form, phone_number: e.target.value })}
             />
             <input
-                className="w-full border p-2 rounded"
+                className={styles.input}
                 type="date"
                 value={form.date_of_birth}
                 onChange={e => setForm({ ...form, date_of_birth: e.target.value })}
             />
             <input
-                className="w-full border p-2 rounded"
+                className={styles.input}
                 placeholder="Password"
-                type="password"
+                type={showPass ? "text" : "password"}
                 value={form.password}
                 onChange={e => setForm({ ...form, password: e.target.value })}
                 required
             />
-            <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">
+            <p className={styles.passSwitch} onClick={() => {
+                setShowPass(!showPass)
+            }}>{showPass ? "Hide" : "Show"} Password</p>
+            <button type="submit" className={styles.submitBtn}>
                 Sign Up
             </button>
         </form>
