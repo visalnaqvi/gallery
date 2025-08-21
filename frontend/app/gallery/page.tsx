@@ -6,8 +6,16 @@ import Image from "next/image";
 import ImageGallery, { ReactImageGalleryItem } from "react-image-gallery";
 import "react-image-gallery/styles/css/image-gallery.css";
 
+
+type ImageItem = {
+    id: string;
+    compressed_location: string;
+    filename: string;
+    original_location: string;// already used in UI
+};
+
 type ApiResponse = {
-    images: string[];
+    images: ImageItem[];
     hasMore: boolean;
 };
 
@@ -16,87 +24,58 @@ export default function GroupGallery() {
     const groupId = searchParams.get("groupId");
 
     const [isOpen, setIsOpen] = useState(false);
-    const [startIndex, setStartIndex] = useState(0);
-    const [images, setImages] = useState<string[]>([]);
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [images, setImages] = useState<ImageItem[]>([]);
     const [page, setPage] = useState(0);
     const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(false);
-    const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
-
+    const LOAD_MORE_AHEAD = 5;
     const loaderRef = useRef<HTMLDivElement | null>(null);
 
-    // ✅ Enhanced caching system
+    // ✅ Use refs for cache + preloaded images (no re-render)
+    const loadedImagesRef = useRef<Set<string>>(new Set());
     const cache = useRef<{
         pages: Map<string, string[]>;
-        allImages: Map<string, string[]>; // Cache all images by groupId
+        allImages: Map<string, string[]>;
         loadingStates: Map<string, boolean>;
     }>({
         pages: new Map(),
         allImages: new Map(),
-        loadingStates: new Map()
+        loadingStates: new Map(),
     });
 
-    // ✅ Preload images to avoid loading states in carousel
+    // ✅ Preload image without re-render
     const preloadImage = useCallback((src: string) => {
-        if (loadedImages.has(src)) return Promise.resolve();
+        if (loadedImagesRef.current.has(src)) return Promise.resolve();
 
         return new Promise<void>((resolve, reject) => {
             const img = new window.Image();
             img.onload = () => {
-                setLoadedImages(prev => new Set(prev).add(src));
+                loadedImagesRef.current.add(src);
                 resolve();
             };
             img.onerror = reject;
             img.src = src;
         });
-    }, [loadedImages]);
+    }, []);
 
+    // ✅ Fetch images with caching
     const fetchImages = useCallback(async () => {
         if (!groupId || !hasMore || loading) return;
 
         const requestKey = `${groupId}-${page}`;
 
-        // Check if this exact request is already loading
-        if (cache.current.loadingStates.get(requestKey)) return;
-
         setLoading(true);
-        cache.current.loadingStates.set(requestKey, true);
-
-        // Check page cache first
-        const cacheKey = `${groupId}-${page}`;
-        if (cache.current.pages.has(cacheKey)) {
-            const cachedImages = cache.current.pages.get(cacheKey) || [];
-            setImages((prev) => [...prev, ...cachedImages]);
-            setPage((prev) => prev + 1);
-            setLoading(false);
-            cache.current.loadingStates.set(requestKey, false);
-
-            // Preload these images in background
-            cachedImages.forEach(src => preloadImage(src));
-            return;
-        }
 
         try {
-            const res = await fetch(
-                `/api/groups/images?groupId=${groupId}&page=${page}`
-            );
+            const res = await fetch(`/api/groups/images?groupId=${groupId}&page=${page}`);
             const data: ApiResponse = await res.json();
-
-            // Cache the page result
-            cache.current.pages.set(cacheKey, data.images);
-
-            // Update all images cache
-            const currentAllImages = cache.current.allImages.get(groupId) || [];
-            const updatedAllImages = [...currentAllImages, ...data.images];
-            cache.current.allImages.set(groupId, updatedAllImages);
 
             setImages((prev) => [...prev, ...data.images]);
             setHasMore(data.hasMore);
             setPage((prev) => prev + 1);
 
-            // Preload new images in background
-            data.images.forEach(src => preloadImage(src));
-
+            data.images.forEach((image) => preloadImage(image.compressed_location));
         } catch (err) {
             console.error("Failed to fetch images", err);
         } finally {
@@ -105,31 +84,100 @@ export default function GroupGallery() {
         }
     }, [groupId, page, hasMore, loading, preloadImage]);
 
-    // ✅ Initialize from cache if available
-    useEffect(() => {
-        if (groupId && cache.current.allImages.has(groupId)) {
-            const cachedImages = cache.current.allImages.get(groupId) || [];
-            if (cachedImages.length > 0) {
-                setImages(cachedImages);
-                // Calculate how many pages we already have
-                const pagesLoaded = Math.ceil(cachedImages.length / 20); // Assuming 20 images per page
-                setPage(pagesLoaded);
-            }
-        }
-    }, [groupId]);
+    // Helper function to download from Firebase URL with CORS handling
+    const downloadFromFirebaseUrl = useCallback(async (url: string, filename: string) => {
+        try {
+            // Try to use a simple anchor tag approach first
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = filename;
+            link.target = "_blank";
 
-    // ✅ Infinite scroll observer with debouncing
+            // Add to DOM temporarily
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+        } catch (err) {
+            console.error("Failed to download image:", err);
+            alert("Failed to download image. The image will open in a new tab instead.");
+            window.open(url, '_blank');
+        }
+    }, []);
+
+    // Download compressed image via backend proxy
+    const downloadCompressed = useCallback(async () => {
+        try {
+            const response = await fetch('/api/images/download', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    filename: 'compressed_' + images[currentIndex].id,
+                })
+            });
+
+            const { downloadUrl } = await response.json();
+
+            // Fetch the actual file as blob
+            const fileResp = await fetch(downloadUrl);
+            const blob = await fileResp.blob();
+            const url = window.URL.createObjectURL(blob);
+
+            // Trigger download
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = images[currentIndex].filename || "image.jpg";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Download failed:', error);
+        }
+    }, [images, currentIndex]);
+
+    // Download original image via backend proxy
+    const downloadOriginal = useCallback(async () => {
+        try {
+            const response = await fetch('/api/images/download', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    filename: images[currentIndex].id,
+                })
+            });
+
+            const { downloadUrl } = await response.json();
+
+            // Fetch the actual file as blob
+            const fileResp = await fetch(downloadUrl);
+            const blob = await fileResp.blob();
+            const url = window.URL.createObjectURL(blob);
+
+            // Trigger download
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = images[currentIndex].filename || "image.jpg";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Download failed:', error);
+        }
+    }, [images, currentIndex]);
+
+
+    // ✅ Infinite scroll observer
     useEffect(() => {
         let timeoutId: NodeJS.Timeout;
-
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting && !loading) {
-                    // Debounce to prevent multiple rapid calls
                     clearTimeout(timeoutId);
-                    timeoutId = setTimeout(() => {
-                        fetchImages();
-                    }, 100);
+                    timeoutId = setTimeout(() => fetchImages(), 100);
                 }
             },
             { threshold: 0.1 }
@@ -142,48 +190,48 @@ export default function GroupGallery() {
         };
     }, [fetchImages, loading]);
 
-    // ✅ Keyboard support for closing with Esc
+    // ✅ Close on Esc
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
             if (e.key === "Escape") setIsOpen(false);
         };
         if (isOpen) {
             document.addEventListener("keydown", handleEsc);
-            // Prevent body scrolling when carousel is open
-            document.body.style.overflow = 'hidden';
+            document.body.style.overflow = "hidden";
         }
         return () => {
             document.removeEventListener("keydown", handleEsc);
-            document.body.style.overflow = 'unset';
+            document.body.style.overflow = "unset";
         };
     }, [isOpen]);
 
-    // ✅ Preload images when carousel is about to open
-    const handleImageClick = useCallback(async (idx: number) => {
-        setStartIndex(idx);
-        setIsOpen(true);
+    // ✅ Click handler to open carousel
+    const handleImageClick = useCallback(
+        (idx: number) => {
+            setCurrentIndex(idx);
+            setIsOpen(true);
 
-        // Preload current and nearby images
-        const indicesToPreload = [
-            idx - 2, idx - 1, idx, idx + 1, idx + 2
-        ].filter(i => i >= 0 && i < images.length);
+            const indicesToPreload = [idx - 2, idx - 1, idx, idx + 1, idx + 2].filter(
+                (i) => i >= 0 && i < images.length
+            );
+            indicesToPreload.forEach((i) => preloadImage(images[i].compressed_location));
 
-        indicesToPreload.forEach(i => {
-            preloadImage(images[i]);
-        });
-    }, [images, preloadImage]);
+            if (images.length - idx <= LOAD_MORE_AHEAD && hasMore && !loading) {
+                fetchImages();
+            }
+        },
+        [images, hasMore, loading, preloadImage, fetchImages]
+    );
 
     if (!groupId) return <p>No groupId provided in URL</p>;
 
-    // ✅ Enhanced gallery items with better loading handling
+    // ✅ Stable gallery items
     const galleryItems: ReactImageGalleryItem[] = useMemo(
         () =>
-            images.map((src) => ({
-                original: src,
-                thumbnail: src,
+            images.map((image) => ({
+                original: image.original_location,
+                thumbnail: image.compressed_location,
                 loading: "lazy" as const,
-                originalClass: "object-contain bg-black max-h-full w-auto mx-auto",
-                thumbnailClass: "object-cover",
                 originalAlt: "Gallery image",
                 thumbnailAlt: "Gallery thumbnail",
             })),
@@ -192,23 +240,21 @@ export default function GroupGallery() {
 
     return (
         <>
-            {/* ✅ Responsive Masonry-like Grid */}
+            {/* Grid */}
             <div className="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
-                {images.map((src, idx) => (
+                {images.map((image, idx) => (
                     <div
-                        key={`${src}-${idx}`} // Better key to handle duplicate images
+                        key={`${image.compressed_location}-${idx}`}
                         className="relative aspect-square cursor-pointer overflow-hidden rounded-lg shadow-md bg-gray-200"
                         onClick={() => handleImageClick(idx)}
                     >
                         <Image
-                            src={src}
+                            src={image.compressed_location}
                             alt={`group image ${idx}`}
                             fill
                             sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 16.67vw"
                             className="object-cover object-top hover:scale-105 transition-transform duration-300"
-                            priority={idx < 12} // ✅ Preload more images for better UX
-                            placeholder="blur"
-                            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
+                            priority={idx < 12}
                         />
                     </div>
                 ))}
@@ -230,10 +276,9 @@ export default function GroupGallery() {
             {/* Infinite scroll trigger */}
             <div ref={loaderRef} className="h-10"></div>
 
-            {/* ✅ Fixed Fullscreen Carousel with better positioning */}
+            {/* Fullscreen carousel */}
             {isOpen && (
                 <div className="fixed inset-0 bg-black z-50">
-                    {/* Close button */}
                     <button
                         onClick={() => setIsOpen(false)}
                         className="absolute top-4 right-4 z-50 text-white text-3xl hover:text-gray-300 transition-colors duration-200 bg-black bg-opacity-50 rounded-full w-12 h-12 flex items-center justify-center"
@@ -242,48 +287,57 @@ export default function GroupGallery() {
                         ×
                     </button>
 
-                    {/* Image counter */}
                     <div className="absolute top-4 left-4 z-50 text-white bg-black bg-opacity-50 px-3 py-1 rounded">
-                        {startIndex + 1} / {images.length}
+                        {currentIndex + 1} / {images.length}
                     </div>
 
-                    {/* ✅ Fixed carousel container with proper height calculation */}
+                    {/* Download buttons positioned in bottom right */}
+                    <div className="absolute bottom-4 right-4 z-50 flex flex-col gap-2">
+                        <button
+                            onClick={downloadCompressed}
+                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 transition-colors duration-200 shadow-lg"
+                        >
+                            Download Compressed
+                        </button>
+                        <button
+                            onClick={downloadOriginal}
+                            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-500 transition-colors duration-200 shadow-lg"
+                        >
+                            Download Original
+                        </button>
+                    </div>
+
                     <div className="h-full flex flex-col">
                         <div className="flex-1 relative">
                             <ImageGallery
                                 items={galleryItems}
-                                startIndex={startIndex}
-                                showThumbnails={true}
+                                startIndex={currentIndex}
+                                showThumbnails={false}
                                 showFullscreenButton={false}
                                 showPlayButton={false}
                                 showBullets={false}
-                                lazyLoad={false} // ✅ Disable lazy loading since we preload
+                                lazyLoad={false}
                                 showNav={true}
                                 slideDuration={300}
                                 slideInterval={0}
-                                thumbnailPosition="bottom"
                                 onSlide={(index) => {
-                                    // Preload nearby images when sliding
-                                    const indicesToPreload = [
-                                        index - 1, index, index + 1
-                                    ].filter(i => i >= 0 && i < images.length);
-
-                                    indicesToPreload.forEach(i => {
-                                        preloadImage(images[i]);
-                                    });
+                                    setCurrentIndex(index);
+                                    const indicesToPreload = [index - 1, index, index + 1].filter(
+                                        (i) => i >= 0 && i < images.length
+                                    );
+                                    if (images.length - index <= LOAD_MORE_AHEAD && hasMore && !loading) {
+                                        fetchImages();
+                                    }
+                                    indicesToPreload.forEach((i) => preloadImage(images[i].compressed_location));
                                 }}
-                                additionalClass="gallery-container"
                                 renderItem={(item) => (
-                                    <div className="image-gallery-image">
-                                        <img
+                                    <div className="image-gallery-image relative h-screen w-screen flex items-center justify-center">
+                                        <Image
                                             src={item.original}
                                             alt={item.originalAlt || ""}
-                                            className="object-contain max-h-full max-w-full mx-auto"
-                                            style={{
-                                                maxHeight: 'calc(100vh - 120px)', // ✅ Reserve space for thumbnails
-                                                width: 'auto',
-                                                height: 'auto'
-                                            }}
+                                            fill
+                                            className="object-contain"
+                                            priority={false}
                                         />
                                     </div>
                                 )}
@@ -292,8 +346,6 @@ export default function GroupGallery() {
                     </div>
                 </div>
             )}
-
-
         </>
     );
 }

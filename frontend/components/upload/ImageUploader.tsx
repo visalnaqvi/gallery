@@ -13,7 +13,7 @@ import { useUser } from '@/context/UserContext';
 
 interface ImageMeta {
     id: string;
-    location: string;
+    location: string | null;
     filename: string;
     size: number;
     uploaded_at: string;
@@ -103,11 +103,10 @@ export default function ImageUploader() {
                     const fileRef = ref(storage, filePath);
 
                     const uploadTask = await uploadBytesResumable(fileRef, file);
-                    const downloadUrl = await getDownloadURL(uploadTask.ref);
 
                     const meta: ImageMeta = {
                         id: uuid,
-                        location: downloadUrl,
+                        location: null,
                         filename: file.name,
                         size: file.size,
                         uploaded_at: timestamp,

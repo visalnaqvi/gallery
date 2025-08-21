@@ -58,16 +58,16 @@ export default function GroupsList({ userId }: { userId: string }) {
             ) : (
                 <ul className={styles.groupCardsWrapper}>
                     {groups.map(group => (
-                        <li key={group.id} className={styles.groupCard}
-                            onClick={() => {
-                                router.push("/gallery?groupId=" + group.id)
-                            }}
-                        >
+                        <li key={group.id} className={styles.groupCard}>
                             {
                                 group.profile_pic_location == "" ?
                                     <div className={styles.groupImage}>
-                                        <div className={styles.innerWordWrapper}>{group.name.charAt(0)}</div>
-                                    </div> : <div className={styles.cardThumWrapper}><Image className={styles.img} src={group.profile_pic_location} alt="group image" fill></Image></div>
+                                        <div className={styles.innerWordWrapper} onClick={() => {
+                                            router.push("/gallery?groupId=" + group.id)
+                                        }}>{group.name.charAt(0)}</div>
+                                    </div> : <div className={styles.cardThumWrapper} onClick={() => {
+                                        router.push("/gallery?groupId=" + group.id)
+                                    }}><Image className={styles.img} src={group.profile_pic_location} alt="group image" fill></Image></div>
                             }
                             <div className={styles.groupDetails}>
                                 <p className={styles.groupName}>{group.name}</p>
